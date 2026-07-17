@@ -240,16 +240,18 @@ jobs:
 
       - name: Fetch PR labels
         id: pr-labels
-        uses: ./.github/actions/gh-pr-labels
+        uses: ./.github/actions/retry
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          pr-number: ${{ github.event.pull_request.number }}
+          command: gh pr view "${{ github.event.pull_request.number }}" --json labels --jq '.labels[].name'
       - name: Require explicit MCP catalog review label
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
           PR="${{ github.event.pull_request.number }}"
-          if echo "${{ steps.pr-labels.outputs.labels }}" | grep -Fxq 'mcp-catalog-reviewed'; then
+          if echo "${{ steps.pr-labels.outputs.stdout }}" | grep -Fxq 'mcp-catalog-reviewed'; then
             echo "MCP catalog review label present."
             exit 0
           fi

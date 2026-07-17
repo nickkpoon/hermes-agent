@@ -179,14 +179,16 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - name: Fetch PR labels
         id: pr-labels
-        uses: ./.github/actions/gh-pr-labels
+        uses: ./.github/actions/retry
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          pr-number: ${{ github.event.pull_request.number }}
+          command: gh pr view "${{ github.event.pull_request.number }}" --json labels --jq '.labels[].name'
       - name: Require ci-reviewed label
         id: label-check
         run: |
           set -euo pipefail
-          if echo "${{ steps.pr-labels.outputs.labels }}" | grep -Fxq 'ci-reviewed'; then
+          if echo "${{ steps.pr-labels.outputs.stdout }}" | grep -Fxq 'ci-reviewed'; then
             echo "reviewed=true" >> "$GITHUB_OUTPUT"
             echo "ci-reviewed label present."
             exit 0
