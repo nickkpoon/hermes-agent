@@ -52,6 +52,8 @@ jobs:
       - name: Detect affected areas
         id: classify
         uses: ./.github/actions/detect-changes
+        with:
+          github-token: ${{ secrets.AUTOFIX_BOT_PAT }}
 
   # ─────────────────────────────────────────────────────────────────────
   # Lane-gated sub-workflows. Each runs in parallel after detect finishes.
