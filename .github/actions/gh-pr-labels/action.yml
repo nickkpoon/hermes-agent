@@ -1,0 +1,54 @@
+name: Fetch PR labels
+description: >-
+  Fetch a pull request's label list via the GitHub API, retrying on transient
+  failures. Outputs a newline-separated list of label names so callers can
+  grep for specific labels. Hard-fails (exit 1) after max attempts so a
+  flaky API never reads as "label absent" — which would falsely block or
+  silently pass a security gate.
+
+inputs:
+  pr-number:
+    description: Pull request number.
+    required: true
+  attempts:
+    description: Max attempts before giving up.
+    default: "3"
+  delay:
+    description: Seconds to wait between attempts.
+    default: "10"
+
+outputs:
+  labels:
+    description: Newline-separated list of label names (empty if the PR has no labels).
+    value: ${{ steps.fetch.outputs.labels }}
+
+runs:
+  using: composite
+  steps:
+    - id: fetch
+      shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+        _PR: ${{ inputs.pr-number }}
+        _ATTEMPTS: ${{ inputs.attempts }}
+        _DELAY: ${{ inputs.delay }}
+      run: |
+        set -uo pipefail
+        LABELS=""
+        for i in $(seq 1 "$_ATTEMPTS"); do
+          if LABELS=$(gh pr view "$_PR" --json labels --jq '.labels[].name'); then
+            break
+          fi
+          if [ "$i" = "$_ATTEMPTS" ]; then
+            echo "::error::Could not fetch PR labels after $_ATTEMPTS attempts (GitHub API failure — re-run this job)."
+            exit 1
+          fi
+          echo "::warning::gh pr view failed (attempt $i); retrying in ${_DELAY}s"
+          sleep "$_DELAY"
+        done
+        # Use a heredoc delimiter so newlines survive into the output variable.
+        {
+          echo 'labels<<__LABELS_EOF__'
+          echo "$LABELS"
+          echo '__LABELS_EOF__'
+        } >> "$GITHUB_OUTPUT"
