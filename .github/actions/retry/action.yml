@@ -23,6 +23,7 @@ inputs:
 outputs:
   stdout:
     description: Captured stdout from the successful attempt (empty if not needed).
+    value: ${{ steps.retry.outputs.stdout }}
 
 runs:
   using: composite
